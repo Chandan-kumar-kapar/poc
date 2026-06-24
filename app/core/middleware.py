@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -11,6 +12,48 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.errors import correlation_id_ctx
+
+# Field names redacted from logged payloads, regardless of nesting.
+_REDACTED_FIELDS = {
+    "password",
+    "new_password",
+    "current_password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "id_token",
+    "client_secret",
+    "secret",
+    "authorization",
+}
+
+
+def _redact(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            k: ("***" if k.lower() in _REDACTED_FIELDS else _redact(v))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact(v) for v in value]
+    return value
+
+
+def _safe_payload(raw_body: bytes) -> object:
+    if not raw_body:
+        return None
+    try:
+        return _redact(json.loads(raw_body))
+    except (UnicodeDecodeError, ValueError):
+        # Non-JSON body (e.g. form data or binary): log size only.
+        return f"<{len(raw_body)} bytes, non-JSON>"
+
+
+class _HealthCheckFilter(logging.Filter):
+    """Drops uvicorn access-log noise for the liveness probe."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/health" not in record.getMessage()
 
 
 def configure_logging() -> None:
@@ -29,6 +72,17 @@ def configure_logging() -> None:
             pass
 
     logging.basicConfig(format="%(message)s", level=logging.INFO, handlers=handlers)
+
+    # uvicorn configures its own loggers (with propagate=False) before this
+    # runs, so access/error logs never reach the root handlers above unless
+    # we attach the same handlers here directly.
+    for name in ("uvicorn.access", "uvicorn.error"):
+        uv_logger = logging.getLogger(name)
+        uv_logger.handlers = handlers
+        uv_logger.propagate = False
+
+    logging.getLogger("uvicorn.access").addFilter(_HealthCheckFilter())
+
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -52,8 +106,28 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         cid = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
         correlation_id_ctx.set(cid)
         structlog.contextvars.bind_contextvars(correlation_id=cid)
+        # Cache the body up front so it can still be read by the route
+        # handler below — Starlette memoizes Request.body() either way.
+        raw_body = await request.body()
         try:
             response = await call_next(request)
+        except Exception:
+            log.error(
+                "request_failed",
+                path=str(request.url.path),
+                method=request.method,
+                payload=_safe_payload(raw_body),
+            )
+            raise
+        else:
+            if response.status_code >= 400:
+                log.warning(
+                    "request_failed",
+                    path=str(request.url.path),
+                    method=request.method,
+                    status_code=response.status_code,
+                    payload=_safe_payload(raw_body),
+                )
         finally:
             structlog.contextvars.clear_contextvars()
         response.headers["X-Correlation-ID"] = cid

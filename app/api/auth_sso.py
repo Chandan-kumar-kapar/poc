@@ -75,12 +75,7 @@ async def sso_callback(
         )
 
     refresh_raw = await token_service.issue_refresh_token(db, user_id=user.id)
-    access, _jti, exp = mint_access_token(
-        user_id=str(user.id),
-        email=user.email,
-        roles=user.role_names,
-        permissions=user.permission_names,
-    )
+    access, _jti, exp = mint_access_token(user_id=str(user.id))
     import time
 
     resp = TokenResponse(

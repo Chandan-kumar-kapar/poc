@@ -30,10 +30,8 @@ settings = get_settings()
 _GENERIC_AUTH_ERROR = "Invalid credentials."
 
 
-def _token_response(user_id: str, email: str, roles, perms, refresh_raw: str) -> TokenResponse:
-    access, _jti, exp = mint_access_token(
-        user_id=user_id, email=email, roles=roles, permissions=perms
-    )
+def _token_response(user_id: str, refresh_raw: str) -> TokenResponse:
+    access, _jti, exp = mint_access_token(user_id=user_id)
     import time
 
     return TokenResponse(
@@ -79,9 +77,7 @@ async def login(
             "invalid_credentials", _GENERIC_AUTH_ERROR, status.HTTP_401_UNAUTHORIZED
         )
     refresh_raw = await token_service.issue_refresh_token(db, user_id=user.id)
-    resp = _token_response(
-        str(user.id), user.email, user.role_names, user.permission_names, refresh_raw
-    )
+    resp = _token_response(str(user.id), refresh_raw)
     await db.commit()
     return resp
 
@@ -114,9 +110,7 @@ async def refresh(
         raise AppError(
             "invalid_refresh", "Invalid refresh token.", status.HTTP_401_UNAUTHORIZED
         )
-    resp = _token_response(
-        str(user.id), user.email, user.role_names, user.permission_names, new_raw
-    )
+    resp = _token_response(str(user.id), new_raw)
     await db.commit()
     return resp
 

@@ -46,13 +46,13 @@ def test_verify_against_none_is_false_but_does_work():
 def test_jwt_mint_and_verify():
     from app.core.jwt import TokenError, mint_access_token, verify_access_token
 
-    token, jti, exp = mint_access_token(
-        user_id="u1", email="a@b.com", roles=["User"], permissions=["client:view"]
-    )
+    token, jti, exp = mint_access_token(user_id="u1")
     claims = verify_access_token(token)
     assert claims["sub"] == "u1"
     assert claims["jti"] == jti
-    assert "client:view" in claims["permissions"]
+    assert "email" not in claims
+    assert "roles" not in claims
+    assert "permissions" not in claims
     assert claims["iss"] == "https://api.poc.local"
     assert claims["aud"] == "poc-api"
 
@@ -60,9 +60,7 @@ def test_jwt_mint_and_verify():
 def test_jwt_rejects_tampered_token():
     from app.core.jwt import TokenError, mint_access_token, verify_access_token
 
-    token, _, _ = mint_access_token(
-        user_id="u1", email="a@b.com", roles=[], permissions=[]
-    )
+    token, _, _ = mint_access_token(user_id="u1")
     tampered = token[:-3] + ("aaa" if not token.endswith("aaa") else "bbb")
     with pytest.raises(TokenError):
         verify_access_token(tampered)
@@ -72,9 +70,7 @@ def test_jwt_rejects_wrong_audience(monkeypatch):
     from app.core import jwt as jwtmod
     from app.core.jwt import TokenError, mint_access_token, verify_access_token
 
-    token, _, _ = mint_access_token(
-        user_id="u1", email="a@b.com", roles=[], permissions=[]
-    )
+    token, _, _ = mint_access_token(user_id="u1")
     # Change expected audience after minting -> must reject.
     settings = jwtmod.get_settings()
     monkeypatch.setattr(settings, "jwt_audience", "different-aud")

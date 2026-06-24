@@ -131,9 +131,7 @@ async def test_forbidden_when_permission_missing(app_client: AsyncClient):
         await db.commit()
         uid = str(u.id)
 
-    token, _, _ = mint_access_token(
-        user_id=uid, email="noperms@poc.local", roles=[], permissions=[]
-    )
+    token, _, _ = mint_access_token(user_id=uid)
     resp = await app_client.get(
         "/clients", headers={"Authorization": f"Bearer {token}"}
     )

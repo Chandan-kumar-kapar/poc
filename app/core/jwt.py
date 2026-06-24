@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from jose import jwt
 from jose.exceptions import JWTError
@@ -19,14 +19,14 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def mint_access_token(
-    *,
-    user_id: str,
-    email: str,
-    roles: List[str],
-    permissions: List[str],
-) -> tuple[str, str, datetime]:
-    """Returns (token, jti, expires_at)."""
+def mint_access_token(*, user_id: str) -> tuple[str, str, datetime]:
+    """Returns (token, jti, expires_at).
+
+    Claims are kept to the bare minimum (sub/jti/iss/aud/iat/exp) so the
+    token is just an opaque reference — email, roles, and permissions are
+    not anyone's business to read out of a decoded JWT. Callers resolve
+    those server-side from `sub` on every request (see deps.get_current_user).
+    """
     settings = get_settings()
     keyset = get_keyset()
     jti = str(uuid.uuid4())
@@ -34,9 +34,6 @@ def mint_access_token(
     exp = iat + timedelta(minutes=settings.access_token_expire_minutes)
     claims: Dict[str, Any] = {
         "sub": user_id,
-        "email": email,
-        "roles": roles,
-        "permissions": permissions,
         "jti": jti,
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_audience,
