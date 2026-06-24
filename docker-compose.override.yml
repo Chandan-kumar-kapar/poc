@@ -1,0 +1,25 @@
+# Development override — auto-merged by `docker compose up`.
+# Bind-mounts your source into the container for live editing, enables
+# uvicorn --reload, and writes a copy of logs to ./logs on the host.
+#
+# To run WITHOUT these dev conveniences (production-shaped, baked-in code):
+#   docker compose -f docker-compose.yml up --build
+services:
+  api:
+    volumes:
+      # Live source: edit on the host, changes appear in the container.
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - ./alembic.ini:/app/alembic.ini
+      # Signing keys generated on first boot land here on the host too.
+      - ./secrets:/run/secrets
+      # Host-visible log directory (see LOG_FILE below).
+      - ./logs:/app/logs
+    environment:
+      # Reload on code changes.
+      UVICORN_RELOAD: "true"
+      # If set, the app also writes JSON logs to this file (in addition to
+      # stdout). Tail it on the host at ./logs/app.log.
+      LOG_FILE: /app/logs/app.log
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

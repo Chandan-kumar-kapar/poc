@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.db.redis_client import get_redis
+from app.db import redis_client
 from app.models.token import RefreshToken, RevokedToken
 
 settings = get_settings()
@@ -69,7 +69,10 @@ async def rotate_refresh_token(db: AsyncSession, raw: str) -> tuple[uuid.UUID, s
     if rt.revoked:
         raise RefreshInvalidError("Refresh token revoked.")
 
-    if rt.expires_at <= _now():
+    expires_at = rt.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= _now():
         raise RefreshInvalidError("Refresh token expired.")
 
     if rt.consumed:
@@ -127,7 +130,7 @@ async def revoke_access_jti(db: AsyncSession, jti: str, expires_at: datetime) ->
     await db.flush()
     ttl = max(1, int((expires_at - _now()).total_seconds()))
     try:
-        await get_redis().set(_redis_key(jti), "1", ex=ttl)
+        await redis_client.get_redis().set(_redis_key(jti), "1", ex=ttl)
     except Exception:
         # Redis unavailable: Postgres remains the source of truth.
         pass
@@ -135,7 +138,7 @@ async def revoke_access_jti(db: AsyncSession, jti: str, expires_at: datetime) ->
 
 async def is_access_jti_revoked(db: AsyncSession, jti: str) -> bool:
     try:
-        if await get_redis().get(_redis_key(jti)) is not None:
+        if await redis_client.get_redis().get(_redis_key(jti)) is not None:
             return True
     except Exception:
         pass

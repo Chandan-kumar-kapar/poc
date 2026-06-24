@@ -13,7 +13,6 @@ os.environ.setdefault("JWT_ACTIVE_KID", "test-key")
 os.environ.setdefault("SEED_ADMIN_PASSWORD", "Admin!Passw0rd123")
 os.environ.setdefault("SEED_USER_PASSWORD", "User!Passw0rd123")
 
-import asyncio
 from typing import AsyncGenerator
 
 import pytest
@@ -22,12 +21,6 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest_asyncio.fixture
@@ -65,7 +58,8 @@ async def app_client() -> AsyncGenerator[AsyncClient, None]:
         async def set(self, *a, **k):
             return True
 
-    redis_mod.get_redis.cache_clear()
+    # Force the fake on the module so token.py (which calls
+    # redis_client.get_redis()) uses it instead of a real connection.
     redis_mod.get_redis = lambda: _FakeRedis()  # type: ignore
 
     # Seed RBAC + users.

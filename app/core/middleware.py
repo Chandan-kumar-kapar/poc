@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import sys
 import uuid
 
 import structlog
@@ -12,7 +14,21 @@ from app.core.errors import correlation_id_ctx
 
 
 def configure_logging() -> None:
-    logging.basicConfig(format="%(message)s", level=logging.INFO)
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+
+    # Optional: also write structured logs to a file when LOG_FILE is set.
+    # In dev (docker-compose.override.yml) this maps to ./logs/app.log on the
+    # host so logs are easy to tail and keep.
+    log_file = os.getenv("LOG_FILE")
+    if log_file:
+        try:
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+        except OSError:
+            # Never let logging setup crash the app.
+            pass
+
+    logging.basicConfig(format="%(message)s", level=logging.INFO, handlers=handlers)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -21,7 +37,9 @@ def configure_logging() -> None:
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
-        logger_factory=structlog.PrintLoggerFactory(),
+        # Route through stdlib logging so both stdout and the file handler get
+        # every line.
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
 

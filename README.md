@@ -63,6 +63,34 @@ curl -s http://localhost:8000/policies/<policy_id> \
 
 ---
 
+## Dev mode (live editing + file logs)
+
+A `docker-compose.override.yml` is included and **auto-merged** by
+`docker compose up`. It:
+
+- bind-mounts `./app`, `./scripts`, `./alembic.ini` into the container, so code
+  edits on your host are live (no rebuild),
+- runs uvicorn with `--reload`,
+- mounts `./secrets` (generated signing keys appear on your host), and
+- sets `LOG_FILE=/app/logs/app.log`, so structured JSON logs are written to
+  `./logs/app.log` on your host **in addition to** stdout.
+
+```bash
+docker compose up --build          # dev: override applied automatically
+docker compose logs -f api         # stream logs from stdout
+type logs\app.log                  # Windows: view the persisted log file
+tail -f logs/app.log               # macOS/Linux
+```
+
+To run **without** the dev conveniences (production-shaped, code baked into the
+image, no bind mounts), pass only the base file explicitly:
+
+```bash
+docker compose -f docker-compose.yml up --build
+```
+
+---
+
 ## Switching `AUTH_MODE`
 
 The mode is **env-only** — no code changes. Startup **fails fast** if the active
