@@ -1,0 +1,86 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: poc
+      POSTGRES_PASSWORD: poc
+      POSTGRES_DB: poc
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poc -d poc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # --- Auth mode ---
+      AUTH_MODE: ${AUTH_MODE:-NORMAL}
+
+      # --- JWT ---
+      JWT_ALGORITHM: RS256
+      JWT_KEY_DIR: /run/secrets
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private.pem
+      JWT_PUBLIC_KEYS_PATH: /run/secrets/jwks/
+      JWT_ACTIVE_KID: poc-key-a
+      JWT_ISSUER: https://api.poc.local
+      JWT_AUDIENCE: poc-api
+      JWT_CLOCK_SKEW_SECONDS: "60"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      REFRESH_TOKEN_EXPIRE_DAYS: "7"
+
+      # --- Argon2id ---
+      ARGON2_MEMORY_KIB: "19456"
+      ARGON2_TIME_COST: "2"
+      ARGON2_PARALLELISM: "1"
+
+      # --- SSO / OIDC (only required when AUTH_MODE includes SSO) ---
+      ENABLE_SSO: ${ENABLE_SSO:-false}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_AUTHORITY: ${OIDC_AUTHORITY:-}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:8000/auth/sso/callback}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email}
+      OIDC_USE_PKCE: "true"
+      OIDC_REQUIRE_EMAIL_VERIFIED: "true"
+      OIDC_JWKS_CACHE_TTL_SECONDS: "3600"
+      AUTO_PROVISION_SSO_USERS: "true"
+      OIDC_DEFAULT_ROLE: User
+
+      # --- Infra ---
+      DATABASE_URL: postgresql+asyncpg://poc:poc@db:5432/poc
+      REDIS_URL: redis://redis:6379/0
+
+      # --- Seed accounts (demo only) ---
+      SEED_ADMIN_EMAIL: admin@poc.local
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin!Passw0rd123}
+      SEED_USER_EMAIL: user@poc.local
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-User!Passw0rd123}
+
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
