@@ -8,10 +8,11 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.core.passwords import hash_password
 from app.db.session import AsyncSessionLocal
-from app.models.auth import Permission, Role, User
-from app.models.domain import Client, ClientStatus, Policy, PolicyStatus
+from app.modules.auth.models import Permission, Role, User
+from app.modules.auth.passwords import hash_password
+from app.modules.clients.models import Client, ClientStatus
+from app.modules.policies.models import Policy, PolicyStatus
 
 settings = get_settings()
 

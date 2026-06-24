@@ -9,7 +9,12 @@ from sqlalchemy import pool
 
 from app.core.config import get_settings
 from app.db.session import Base
-import app.models  # noqa: F401  (ensure all models are imported)
+
+# Ensure all module models are imported so Base.metadata is fully populated.
+import app.modules.auth.models  # noqa: F401
+import app.modules.auth.token_models  # noqa: F401
+import app.modules.clients.models  # noqa: F401
+import app.modules.policies.models  # noqa: F401
 
 config = context.config
 

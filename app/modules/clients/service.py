@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.domain import Client, ClientStatus
+from app.modules.clients.models import Client, ClientStatus
 
 
 async def search_clients(

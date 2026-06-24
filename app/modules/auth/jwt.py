@@ -8,7 +8,7 @@ from jose import jwt
 from jose.exceptions import JWTError
 
 from app.core.config import get_settings
-from app.core.keys import get_keyset
+from app.modules.auth.keys import get_keyset
 
 
 class TokenError(Exception):

@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.deps import CurrentUserDep
 from app.core.errors import AppError
-from app.core.jwt import mint_access_token
-from app.core.passwords import PasswordPolicyError
 from app.db.session import get_session
-from app.schemas.auth import (
+from app.modules.auth.deps import CurrentUserDep
+from app.modules.auth.jwt import mint_access_token
+from app.modules.auth.passwords import PasswordPolicyError
+from app.modules.auth.schemas import (
     LoginRequest,
     LogoutRequest,
     MessageResponse,
@@ -20,8 +20,8 @@ from app.schemas.auth import (
     TokenResponse,
     UserInfo,
 )
-from app.services import auth as auth_service
-from app.services import token as token_service
+from app.modules.auth import service as auth_service
+from app.modules.auth import token_service
 
 router = APIRouter(prefix="/auth", tags=["auth-local"])
 settings = get_settings()

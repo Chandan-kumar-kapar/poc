@@ -7,11 +7,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
-from app.core.jwt import TokenError, verify_access_token
 from app.db.session import get_session
-from app.models.auth import User
-from app.services import auth as auth_service
-from app.services import token as token_service
+from app.modules.auth.jwt import TokenError, verify_access_token
+from app.modules.auth.models import User
+from app.modules.auth import service as auth_service
+from app.modules.auth import token_service
 
 bearer_scheme = HTTPBearer(auto_error=False)
 

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db import redis_client
-from app.models.token import RefreshToken, RevokedToken
+from app.modules.auth.token_models import RefreshToken, RevokedToken
 
 settings = get_settings()
 

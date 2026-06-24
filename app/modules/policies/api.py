@@ -6,17 +6,14 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import require_permission
 from app.core.errors import AppError
+from app.core.schemas import Page
 from app.db.session import get_session
-from app.models.domain import PolicyStatus
-from app.schemas.domain import (
-    ClientSummary,
-    Page,
-    PolicyDetail,
-    PolicyListItem,
-)
-from app.services import policy as policy_service
+from app.modules.auth.deps import require_permission
+from app.modules.clients.schemas import ClientSummary
+from app.modules.policies.models import PolicyStatus
+from app.modules.policies.schemas import PolicyDetail, PolicyListItem
+from app.modules.policies import service as policy_service
 
 router = APIRouter(prefix="/policies", tags=["policies"])
 

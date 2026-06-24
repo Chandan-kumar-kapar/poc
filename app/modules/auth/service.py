@@ -6,13 +6,13 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.passwords import (
+from app.modules.auth.passwords import (
     hash_password,
     needs_rehash,
     validate_password_policy,
     verify_password,
 )
-from app.models.auth import OAuthAccount, Role, User
+from app.modules.auth.models import OAuthAccount, Role, User
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:

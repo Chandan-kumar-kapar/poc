@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.domain import Policy, PolicyStatus
+from app.modules.policies.models import Policy, PolicyStatus
 
 
 async def search_policies(

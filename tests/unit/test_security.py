@@ -9,7 +9,7 @@ os.environ.setdefault("POC_INMEMORY_KEYS", "1")
 
 import pytest
 
-from app.core.passwords import (
+from app.modules.auth.passwords import (
     PasswordPolicyError,
     hash_password,
     validate_password_policy,
@@ -44,7 +44,7 @@ def test_verify_against_none_is_false_but_does_work():
 
 
 def test_jwt_mint_and_verify():
-    from app.core.jwt import TokenError, mint_access_token, verify_access_token
+    from app.modules.auth.jwt import TokenError, mint_access_token, verify_access_token
 
     token, jti, exp = mint_access_token(user_id="u1")
     claims = verify_access_token(token)
@@ -58,7 +58,7 @@ def test_jwt_mint_and_verify():
 
 
 def test_jwt_rejects_tampered_token():
-    from app.core.jwt import TokenError, mint_access_token, verify_access_token
+    from app.modules.auth.jwt import TokenError, mint_access_token, verify_access_token
 
     token, _, _ = mint_access_token(user_id="u1")
     tampered = token[:-3] + ("aaa" if not token.endswith("aaa") else "bbb")
@@ -67,8 +67,8 @@ def test_jwt_rejects_tampered_token():
 
 
 def test_jwt_rejects_wrong_audience(monkeypatch):
-    from app.core import jwt as jwtmod
-    from app.core.jwt import TokenError, mint_access_token, verify_access_token
+    from app.modules.auth import jwt as jwtmod
+    from app.modules.auth.jwt import TokenError, mint_access_token, verify_access_token
 
     token, _, _ = mint_access_token(user_id="u1")
     # Change expected audience after minting -> must reject.
@@ -82,7 +82,7 @@ def test_pkce_pair_is_valid():
     import base64
     import hashlib
 
-    from app.services.sso import make_pkce_pair
+    from app.modules.auth.sso import make_pkce_pair
 
     verifier, challenge = make_pkce_pair()
     expected = (

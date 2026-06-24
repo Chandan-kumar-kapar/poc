@@ -116,9 +116,9 @@ async def test_policy_404(app_client: AsyncClient, user_token: str):
 async def test_forbidden_when_permission_missing(app_client: AsyncClient):
     """A user whose role lacks client:view gets 403 (not 401)."""
     # Create a role-less user directly, mint a token for them.
-    from app.core.jwt import mint_access_token
-    from app.models.auth import User
-    from app.core.passwords import hash_password
+    from app.modules.auth.jwt import mint_access_token
+    from app.modules.auth.models import User
+    from app.modules.auth.passwords import hash_password
 
     TestSessionLocal = app_client._test_session  # type: ignore
     async with TestSessionLocal() as db:

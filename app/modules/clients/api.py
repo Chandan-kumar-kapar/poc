@@ -6,12 +6,13 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import require_permission
 from app.core.errors import AppError
+from app.core.schemas import Page
 from app.db.session import get_session
-from app.models.domain import ClientStatus
-from app.schemas.domain import ClientDetail, ClientListItem, Page
-from app.services import client as client_service
+from app.modules.auth.deps import require_permission
+from app.modules.clients.models import ClientStatus
+from app.modules.clients.schemas import ClientDetail, ClientListItem
+from app.modules.clients import service as client_service
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 

@@ -5,16 +5,20 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth_local, auth_sso, clients, health, policies
+from app.api import health
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
-from app.core.keys import get_keyset
 from app.core.middleware import (
     CorrelationIdMiddleware,
     SecurityHeadersMiddleware,
     configure_logging,
     log,
 )
+from app.modules.auth import api_local as auth_local
+from app.modules.auth import api_sso as auth_sso
+from app.modules.auth.keys import get_keyset
+from app.modules.clients import api as clients
+from app.modules.policies import api as policies
 
 settings = get_settings()
 

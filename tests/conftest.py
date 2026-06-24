@@ -40,7 +40,10 @@ async def app_client() -> AsyncGenerator[AsyncClient, None]:
     session_mod.engine = test_engine
     session_mod.AsyncSessionLocal = TestSessionLocal
 
-    import app.models  # noqa: F401  ensure metadata is populated
+    import app.modules.auth.models  # noqa: F401  ensure metadata is populated
+    import app.modules.auth.token_models  # noqa: F401
+    import app.modules.clients.models  # noqa: F401
+    import app.modules.policies.models  # noqa: F401
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

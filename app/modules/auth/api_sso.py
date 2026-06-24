@@ -8,12 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.core.jwt import mint_access_token
 from app.db.session import get_session
-from app.schemas.auth import TokenResponse
-from app.services import auth as auth_service
-from app.services import sso as sso_service
-from app.services import token as token_service
+from app.modules.auth.jwt import mint_access_token
+from app.modules.auth.schemas import TokenResponse
+from app.modules.auth import service as auth_service
+from app.modules.auth import sso as sso_service
+from app.modules.auth import token_service
 
 router = APIRouter(prefix="/auth/sso", tags=["auth-sso"])
 settings = get_settings()
