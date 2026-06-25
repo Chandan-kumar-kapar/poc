@@ -11,8 +11,14 @@ from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
 from app.modules.auth.models import Permission, Role, User
 from app.modules.auth.passwords import hash_password
-from app.modules.clients.models import Client, ClientStatus
-from app.modules.policies.models import Policy, PolicyStatus
+from app.modules.clients.models import Client, ClientStatus, Gender, RiskProfile
+from app.modules.policies.models import (
+    Beneficiary,
+    BeneficiaryRelationship,
+    Policy,
+    PolicyDocument,
+    PolicyStatus,
+)
 
 settings = get_settings()
 
@@ -38,6 +44,19 @@ LAST_NAMES = [
     "Wilson", "Anderson", "Patel", "Nguyen", "Kim", "Chen", "Singh",
 ]
 PRODUCTS = ["AUTO", "HOME", "LIFE", "HEALTH"]
+UNDERWRITERS = ["Assurance Corp Ltd", "Pinnacle Mutual", "Northbridge Re"]
+BRANCHES = ["Austin, TX", "Denver, CO", "Raleigh, NC", "Phoenix, AZ"]
+PAYMENT_FREQUENCIES = ["Monthly", "Quarterly", "Annual"]
+DOC_TEMPLATES = [
+    ("Policy certificate", "certificate"),
+    ("Policy schedule", "schedule"),
+    ("Nomination form", "nomination"),
+]
+CITIES = [
+    ("Austin", "TX"), ("Denver", "CO"), ("Raleigh", "NC"), ("Phoenix", "AZ"),
+    ("Portland", "OR"), ("Columbus", "OH"),
+]
+STREET_NAMES = ["Oak Lane", "Maple Ave", "Cedar St", "5th St", "Sunset Blvd", "Elm Dr"]
 
 
 async def seed_rbac(db) -> dict[str, Role]:
@@ -97,13 +116,23 @@ async def seed_domain(db) -> None:
     for i in range(1, 21):
         fn = rng.choice(FIRST_NAMES)
         ln = rng.choice(LAST_NAMES)
+        city, state = rng.choice(CITIES)
         c = Client(
             client_code=f"CLT-{i:04d}",
             first_name=fn,
             last_name=ln,
+            gender=rng.choice([Gender.MALE, Gender.FEMALE]),
             email=f"{fn.lower()}.{ln.lower()}{i}@example.com",
             phone=f"+1-555-{rng.randint(1000, 9999)}",
             date_of_birth=date(rng.randint(1955, 2002), rng.randint(1, 12), rng.randint(1, 28)),
+            ssn_last4=f"{rng.randint(0, 9999):04d}",
+            risk_profile=rng.choice(
+                [RiskProfile.LOW] * 5 + [RiskProfile.MODERATE] * 3 + [RiskProfile.HIGH]
+            ),
+            address_line1=f"{rng.randint(1, 999)} {rng.choice(STREET_NAMES)}",
+            city=city,
+            state=state,
+            postal_code=f"{rng.randint(10000, 99999)}",
             status=rng.choice([ClientStatus.ACTIVE] * 4 + [ClientStatus.INACTIVE]),
         )
         clients.append(c)
@@ -115,6 +144,12 @@ async def seed_domain(db) -> None:
         c = rng.choice(clients)
         start = date(2023, 1, 1) + timedelta(days=rng.randint(0, 900))
         term_years = rng.choice([1, 2, 3])
+        end = start + timedelta(days=365 * term_years)
+        premium = Decimal(rng.randint(20000, 500000)) / 100
+        frequency = rng.choice(PAYMENT_FREQUENCIES)
+        periods_per_year = {"Monthly": 12, "Quarterly": 4, "Annual": 1}[frequency]
+        periods_paid = rng.randint(1, max(1, term_years * periods_per_year))
+        last_paid = start + timedelta(days=int(365 * periods_paid / periods_per_year))
         p = Policy(
             policy_number=f"POL-{pol_num:05d}",
             client_id=c.id,
@@ -123,13 +158,52 @@ async def seed_domain(db) -> None:
                 [PolicyStatus.ACTIVE] * 3
                 + [PolicyStatus.LAPSED, PolicyStatus.CANCELLED, PolicyStatus.PENDING]
             ),
-            premium_amount=Decimal(rng.randint(20000, 500000)) / 100,
+            premium_amount=premium,
             currency="USD",
             start_date=start,
-            end_date=start + timedelta(days=365 * term_years),
+            end_date=end,
+            coverage_amount=premium * Decimal(rng.randint(200, 800)),
+            underwriter=rng.choice(UNDERWRITERS),
+            agent_name=f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}",
+            agent_code=f"AG{rng.randint(100, 999)}",
+            branch=rng.choice(BRANCHES),
+            payment_frequency=frequency,
+            next_due_date=last_paid + timedelta(days=int(365 / periods_per_year)),
+            last_paid_date=last_paid,
+            total_paid_to_date=premium * periods_paid,
         )
         pol_num += 1
         db.add(p)
+        await db.flush()
+
+        spouse_pct = Decimal(rng.choice([50, 60, 70]))
+        db.add(
+            Beneficiary(
+                policy_id=p.id,
+                name=f"{rng.choice(FIRST_NAMES)} {c.last_name}",
+                relationship_type=BeneficiaryRelationship.SPOUSE,
+                percentage=spouse_pct,
+                is_primary=True,
+            )
+        )
+        db.add(
+            Beneficiary(
+                policy_id=p.id,
+                name=f"{rng.choice(FIRST_NAMES)} {c.last_name}",
+                relationship_type=BeneficiaryRelationship.CHILD,
+                percentage=Decimal(100) - spouse_pct,
+                is_primary=False,
+            )
+        )
+        for doc_name, doc_type in DOC_TEMPLATES:
+            db.add(
+                PolicyDocument(
+                    policy_id=p.id,
+                    name=f"{doc_name} — {p.policy_number}",
+                    doc_type=doc_type,
+                    file_size_bytes=rng.randint(80_000, 900_000),
+                )
+            )
     await db.flush()
 
 

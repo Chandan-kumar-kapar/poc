@@ -23,6 +23,18 @@ class ClientStatus(str, enum.Enum):
     INACTIVE = "INACTIVE"
 
 
+class RiskProfile(str, enum.Enum):
+    LOW = "LOW"
+    MODERATE = "MODERATE"
+    HIGH = "HIGH"
+
+
+class Gender(str, enum.Enum):
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+    OTHER = "OTHER"
+
+
 class Client(Base):
     __tablename__ = "clients"
 
@@ -32,9 +44,22 @@ class Client(Base):
     client_code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     first_name: Mapped[str] = mapped_column(String(100), index=True)
     last_name: Mapped[str] = mapped_column(String(100), index=True)
+    gender: Mapped[Optional[Gender]] = mapped_column(
+        Enum(Gender, name="gender"), nullable=True
+    )
     email: Mapped[str] = mapped_column(String(320), index=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True)
     date_of_birth: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    # Only the last 4 digits are ever persisted — the full SSN/PAN is never
+    # stored since no workflow here needs it (read-only search/detail views).
+    ssn_last4: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
+    risk_profile: Mapped[RiskProfile] = mapped_column(
+        Enum(RiskProfile, name="risk_profile"), default=RiskProfile.LOW
+    )
+    address_line1: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    postal_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     status: Mapped[ClientStatus] = mapped_column(
         Enum(ClientStatus, name="client_status"), default=ClientStatus.ACTIVE
     )
@@ -52,3 +77,23 @@ class Client(Base):
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def ssn_masked(self) -> Optional[str]:
+        return f"•••••{self.ssn_last4}" if self.ssn_last4 else None
+
+    @property
+    def policy_count(self) -> int:
+        return len(self.policies)
+
+    @property
+    def full_address(self) -> Optional[str]:
+        if not self.address_line1:
+            return None
+        parts = [self.address_line1]
+        city_state = ", ".join(p for p in (self.city, self.state) if p)
+        if city_state:
+            parts.append(city_state)
+        if self.postal_code:
+            parts.append(self.postal_code)
+        return ", ".join(parts)
